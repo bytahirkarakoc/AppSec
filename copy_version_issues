@@ -1,0 +1,48 @@
+import requests
+import json
+
+base_url = "http://192.168.13.150:8080/ssc/api/v1"
+projects_url = f"{base_url}/projects"
+copy_state_url = f"{base_url}/projectVersions/action/copyCurrentState"
+token = "FortifyToken M2U4MzM5ODUtOTYxMy00ZjBkLWIyMTQtYTk5MjBkMDg4ZjBh"    ##Unified token used!!
+headers = {
+    "Authorization": token,
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
+
+response = requests.get(projects_url, headers=headers)
+if response.status_code == 200:
+    projects = response.json()['data']
+    for project in projects:
+        project_id = project['id']
+        project_name = project['name']
+        versions_url = f"{projects_url}/{project_id}/versions"
+        versions_response = requests.get(versions_url, headers=headers)
+        if versions_response.status_code == 200:
+            versions = versions_response.json()['data']
+            source_version_id = None
+            target_version_id = None
+            
+            for version in versions:
+                if version['name'] == "1.0":
+                    source_version_id = version['id']
+                elif version['name'] == "3.0":
+                    target_version_id = version['id']
+            
+            if source_version_id and target_version_id:
+                copy_data = json.dumps({
+                    "previousProjectVersionId": source_version_id,
+                    "projectVersionId": target_version_id
+                })
+                copy_response = requests.post(copy_state_url, headers=headers, data=copy_data)
+                if copy_response.status_code == 200:
+                    print(f"{project_name}: Version '1.0' content successfully copied into '3.0'.")
+                else:
+                    print(f"{project_name}: error occurred during the copy: {copy_response.text}")
+            else:
+                print(f"{project_name}: versions not found.")
+        else:
+            print(f"{project_name}: Error listing versions: {versions_response.text}")
+else:
+    print("Error listing projects:", response.text)
